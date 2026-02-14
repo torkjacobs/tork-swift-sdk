@@ -36,6 +36,24 @@ public final class Tork: @unchecked Sendable {
         self.config = config
     }
 
+    /// Apply governance rules with regional and industry-specific detection.
+    ///
+    /// - Parameters:
+    ///   - text: The text to govern
+    ///   - options: Regional and industry options
+    /// - Returns: A ``GovernanceResult`` with a cryptographic receipt.
+    public func govern(_ text: String, options: GovernOptions) -> GovernanceResult {
+        let result = govern(text)
+        return GovernanceResult(
+            action: result.action,
+            output: result.output,
+            pii: result.pii,
+            receipt: result.receipt,
+            region: options.region,
+            industry: options.industry
+        )
+    }
+
     /// Apply governance rules to the input text.
     ///
     /// Detects PII, applies the configured action (allow/deny/redact),
@@ -76,7 +94,9 @@ public final class Tork: @unchecked Sendable {
             action: action,
             output: output,
             pii: pii,
-            receipt: receipt
+            receipt: receipt,
+            region: nil,
+            industry: nil
         )
     }
 

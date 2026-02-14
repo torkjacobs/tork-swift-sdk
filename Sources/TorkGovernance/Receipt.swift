@@ -22,12 +22,25 @@ public struct GovernanceReceipt: Sendable {
     public let processingTimeNs: UInt64
 }
 
+/// Options for regional and industry-specific PII detection.
+public struct GovernOptions: Sendable {
+    public let region: [String]?
+    public let industry: String?
+
+    public init(region: [String]? = nil, industry: String? = nil) {
+        self.region = region
+        self.industry = industry
+    }
+}
+
 /// Result of a governance operation.
 public struct GovernanceResult: Sendable {
     public let action: GovernanceAction
     public let output: String
     public let pii: PIIResult
     public let receipt: GovernanceReceipt
+    public let region: [String]?
+    public let industry: String?
 }
 
 /// Utility functions for receipt generation.
