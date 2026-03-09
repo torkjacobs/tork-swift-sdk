@@ -40,17 +40,18 @@ public final class Tork: @unchecked Sendable {
     ///
     /// - Parameters:
     ///   - text: The text to govern
-    ///   - options: Regional and industry options
+    ///   - options: Regional, industry, and session context options
     /// - Returns: A ``GovernanceResult`` with a cryptographic receipt.
     public func govern(_ text: String, options: GovernOptions) -> GovernanceResult {
-        let result = govern(text)
+        let result = govern(text, sessionContext: options.sessionContext)
         return GovernanceResult(
             action: result.action,
             output: result.output,
             pii: result.pii,
             receipt: result.receipt,
             region: options.region,
-            industry: options.industry
+            industry: options.industry,
+            sessionContext: options.sessionContext
         )
     }
 
@@ -58,7 +59,11 @@ public final class Tork: @unchecked Sendable {
     ///
     /// Detects PII, applies the configured action (allow/deny/redact),
     /// and returns a ``GovernanceResult`` with a cryptographic receipt.
-    public func govern(_ text: String) -> GovernanceResult {
+    ///
+    /// - Parameters:
+    ///   - text: The text to govern
+    ///   - sessionContext: Optional agent/session context for multi-agent tracking
+    public func govern(_ text: String, sessionContext: SessionContext? = nil) -> GovernanceResult {
         let start = DispatchTime.now()
 
         let pii = PiiDetector.detect(text)
@@ -84,7 +89,8 @@ public final class Tork: @unchecked Sendable {
             piiTypes: pii.types,
             piiCount: pii.count,
             policyVersion: config.policyVersion,
-            processingTimeNs: processingNs
+            processingTimeNs: processingNs,
+            sessionContext: sessionContext
         )
 
         totalCalls += 1
@@ -96,7 +102,8 @@ public final class Tork: @unchecked Sendable {
             pii: pii,
             receipt: receipt,
             region: nil,
-            industry: nil
+            industry: nil,
+            sessionContext: sessionContext
         )
     }
 

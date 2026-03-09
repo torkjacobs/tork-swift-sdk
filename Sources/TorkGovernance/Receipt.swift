@@ -20,16 +20,45 @@ public struct GovernanceReceipt: Sendable {
     public let piiCount: Int
     public let policyVersion: String
     public let processingTimeNs: UInt64
+    /// Agent/session context when provided.
+    public let sessionContext: SessionContext?
+}
+
+/// Agent/session context for multi-agent governance tracking.
+///
+/// All fields are optional. When provided, they are included in the POST body
+/// to /api/v1/govern and returned in the receipt under `session_context`.
+public struct SessionContext: Sendable {
+    /// Identifier for the agent making the call.
+    public let agentId: String?
+    /// Role of the agent: "planner", "worker", or "judge".
+    public let agentRole: String?
+    /// Groups all calls from the same agent session.
+    public let sessionId: String?
+    /// Position in the conversation (1, 2, 3...).
+    public let sessionTurn: Int?
+
+    public init(agentId: String? = nil, agentRole: String? = nil,
+                sessionId: String? = nil, sessionTurn: Int? = nil) {
+        self.agentId = agentId
+        self.agentRole = agentRole
+        self.sessionId = sessionId
+        self.sessionTurn = sessionTurn
+    }
 }
 
 /// Options for regional and industry-specific PII detection.
 public struct GovernOptions: Sendable {
     public let region: [String]?
     public let industry: String?
+    /// Optional agent/session context for multi-agent tracking.
+    public let sessionContext: SessionContext?
 
-    public init(region: [String]? = nil, industry: String? = nil) {
+    public init(region: [String]? = nil, industry: String? = nil,
+                sessionContext: SessionContext? = nil) {
         self.region = region
         self.industry = industry
+        self.sessionContext = sessionContext
     }
 }
 
@@ -41,6 +70,8 @@ public struct GovernanceResult: Sendable {
     public let receipt: GovernanceReceipt
     public let region: [String]?
     public let industry: String?
+    /// Agent/session context when provided.
+    public let sessionContext: SessionContext?
 }
 
 /// Utility functions for receipt generation.
@@ -66,7 +97,8 @@ public enum ReceiptUtils {
         piiTypes: [PIIType],
         piiCount: Int,
         policyVersion: String,
-        processingTimeNs: UInt64
+        processingTimeNs: UInt64,
+        sessionContext: SessionContext? = nil
     ) -> GovernanceReceipt {
         GovernanceReceipt(
             receiptId: generateReceiptId(),
@@ -77,7 +109,8 @@ public enum ReceiptUtils {
             piiTypes: piiTypes,
             piiCount: piiCount,
             policyVersion: policyVersion,
-            processingTimeNs: processingTimeNs
+            processingTimeNs: processingTimeNs,
+            sessionContext: sessionContext
         )
     }
 }
