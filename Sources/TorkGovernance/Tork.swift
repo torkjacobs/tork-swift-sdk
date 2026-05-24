@@ -73,7 +73,7 @@ public final class Tork: @unchecked Sendable {
 
         if pii.hasPII {
             action = config.defaultAction
-            output = action == .redact ? pii.redactedText : text
+            output = pii.redactedText
         } else {
             action = .allow
             output = text

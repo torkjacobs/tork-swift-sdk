@@ -72,8 +72,7 @@ public struct PiiDetector {
             let results = pattern.regex.matches(in: text, range: fullRange)
             for result in results {
                 guard let range = Range(result.range, in: text) else { continue }
-                let value = String(text[range])
-                allMatches.append(PIIMatch(type: pattern.type, value: value, range: range))
+                allMatches.append(PIIMatch(type: pattern.type, value: "[REDACTED]", range: range))
                 typeSet.insert(pattern.type)
             }
             redacted = pattern.regex.stringByReplacingMatches(
