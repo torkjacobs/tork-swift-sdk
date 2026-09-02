@@ -22,6 +22,37 @@ public struct GovernanceReceipt: Sendable {
     public let processingTimeNs: UInt64
     /// Agent/session context when provided.
     public let sessionContext: SessionContext?
+    /// Present only on receipts produced by `Tork.scanToolResult`. Records
+    /// the tool-result scan as a CLIENT-ATTESTED, edge-captured control:
+    /// counts by kind and type, the tool it came from, and the SDK that ran
+    /// it -- never the payload.
+    public let toolResultScan: ToolResultScanReceiptBlock?
+
+    public init(
+        receiptId: String,
+        timestamp: Date,
+        inputHash: String,
+        outputHash: String,
+        action: GovernanceAction,
+        piiTypes: [PIIType],
+        piiCount: Int,
+        policyVersion: String,
+        processingTimeNs: UInt64,
+        sessionContext: SessionContext? = nil,
+        toolResultScan: ToolResultScanReceiptBlock? = nil
+    ) {
+        self.receiptId = receiptId
+        self.timestamp = timestamp
+        self.inputHash = inputHash
+        self.outputHash = outputHash
+        self.action = action
+        self.piiTypes = piiTypes
+        self.piiCount = piiCount
+        self.policyVersion = policyVersion
+        self.processingTimeNs = processingTimeNs
+        self.sessionContext = sessionContext
+        self.toolResultScan = toolResultScan
+    }
 }
 
 /// Agent/session context for multi-agent governance tracking.

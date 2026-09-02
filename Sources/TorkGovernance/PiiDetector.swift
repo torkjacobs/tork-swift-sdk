@@ -1,6 +1,14 @@
 import Foundation
 
 /// Represents a type of personally identifiable information.
+///
+/// Tier 1 vocabulary (10 types), matching tork-js-sdk/src/pii.ts's
+/// `PIIType` exactly. Closes SDK-DECLARED-PII-TYPES-WITHOUT-PATTERNS-ACROSS-SDKS:
+/// this enum previously declared only 7 of the 10 -- passport,
+/// driversLicense and bankAccount were entirely absent, so those PII
+/// values passed through `PiiDetector.detect` unflagged and unmasked. See
+/// the identical gap closed in tork-go-sdk/pii.go
+/// (SDK-GO-PII-DETECTOR-DROPS-THREE-DECLARED-TYPES).
 public enum PIIType: String, CaseIterable, Sendable {
     case ssn = "ssn"
     case creditCard = "credit_card"
@@ -9,6 +17,9 @@ public enum PIIType: String, CaseIterable, Sendable {
     case ipAddress = "ip_address"
     case dateOfBirth = "date_of_birth"
     case address = "address"
+    case passport = "passport"
+    case driversLicense = "drivers_license"
+    case bankAccount = "bank_account"
 }
 
 /// A detected PII match in text.
@@ -48,6 +59,14 @@ public struct PiiDetector {
             (.ipAddress, #"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b"#, "[IP_REDACTED]"),
             (.dateOfBirth, #"\b(?:0[1-9]|1[0-2])/(?:0[1-9]|[12]\d|3[01])/(?:19|20)\d{2}\b"#, "[DOB_REDACTED]"),
             (.address, #"(?i)\b\d{1,5}\s+\w+(?:\s+\w+)*\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Court|Ct|Way|Place|Pl)\b"#, "[ADDRESS_REDACTED]"),
+            // The three patterns below close SDK-DECLARED-PII-TYPES-WITHOUT-PATTERNS-ACROSS-SDKS:
+            // ported verbatim from tork-js-sdk/src/pii.ts, appended in the
+            // same order JS declares them so the chained detect-then-replace
+            // semantics below (each pattern redacts over the previous
+            // pattern's already-redacted text) match byte for byte.
+            (.passport, #"\b[A-Z]{1,2}\d{6,9}\b"#, "[PASSPORT_REDACTED]"),
+            (.driversLicense, #"\b[A-Z]\d{7,14}\b"#, "[DL_REDACTED]"),
+            (.bankAccount, #"\b\d{8,17}\b"#, "[ACCOUNT_REDACTED]"),
         ]
 
         for (type, pattern, redaction) in defs {
