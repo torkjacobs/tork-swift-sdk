@@ -20,7 +20,9 @@ let package = Package(
         .testTarget(
             name: "TorkGovernanceTests",
             dependencies: ["TorkGovernance"],
-            path: "Tests/TorkGovernanceTests"
+            path: "Tests/TorkGovernanceTests",
+            // Country-layer parity fixtures, generated from the cloud's corpus.
+            resources: [.copy("Fixtures")]
         ),
     ]
 )

@@ -36,6 +36,13 @@ public struct PIIResult: Sendable {
     public let count: Int
     public let matches: [PIIMatch]
     public let redactedText: String
+    /// Country-registry detections, kept separate from `matches` so `PIIType`
+    /// stays the closed ten-value enum it has always been.
+    public var countryMatches: [PiiCountry.CountryMatch] = []
+    /// Redaction labels of those matches, e.g. `NATIONAL_ID`.
+    public var countryLabels: [String] = []
+    /// Country profiles the text activated, in registry order.
+    public var regions: [String] = []
 }
 
 /// A pattern definition for PII detection.
@@ -79,34 +86,114 @@ public struct PiiDetector {
     }()
 
     /// Detect PII in the given text.
+    ///
+    /// Country profiles are activated from the content itself. Use
+    /// `detect(_:regions:)` to force a set of profiles on.
     public static func detect(_ text: String) -> PIIResult {
-        let nsText = text as NSString
-        let fullRange = NSRange(location: 0, length: nsText.length)
+        detect(text, regions: nil)
+    }
 
-        var allMatches: [PIIMatch] = []
+    /// Detect PII, optionally forcing a set of country profiles on instead of
+    /// inferring them from the content. Region codes are case-insensitive.
+    ///
+    /// REDACTION IS ONE PASS. Until 0.2.0 each pattern was redacted with its own
+    /// `stringByReplacingMatches` over text a previous pattern had already
+    /// rewritten, while `matches` carried ranges into the ORIGINAL text. Two
+    /// patterns matching overlapping spans could leave half an identifier
+    /// standing beside a redaction token -- digits exposed in output the caller
+    /// had been told was redacted. Every match is now collected against the
+    /// original text, overlaps are resolved before anything is rewritten, and
+    /// the surviving spans are spliced right to left in a single pass.
+    public static func detect(_ text: String, regions regionOverride: [String]?) -> PIIResult {
+        let ns = text as NSString
+        let fullRange = NSRange(location: 0, length: ns.length)
+
+        var matches: [PIIMatch] = []
         var typeSet = Set<PIIType>()
-        var redacted = text
 
+        // L0: collect every match against the ORIGINAL text.
+        struct L0Hit {
+            let match: PIIMatch
+            let start: Int
+            let end: Int
+            let redaction: String
+        }
+        var l0: [L0Hit] = []
         for pattern in defaultPatterns {
-            let results = pattern.regex.matches(in: text, range: fullRange)
-            for result in results {
-                guard let range = Range(result.range, in: text) else { continue }
-                allMatches.append(PIIMatch(type: pattern.type, value: "[REDACTED]", range: range))
-                typeSet.insert(pattern.type)
+            for result in pattern.regex.matches(in: text, range: fullRange) {
+                guard result.range.length > 0,
+                      let range = Range(result.range, in: text) else { continue }
+                l0.append(L0Hit(
+                    match: PIIMatch(type: pattern.type, value: "[REDACTED]", range: range),
+                    start: result.range.location,
+                    end: result.range.location + result.range.length,
+                    redaction: pattern.redaction
+                ))
             }
-            redacted = pattern.regex.stringByReplacingMatches(
-                in: redacted,
-                range: NSRange(location: 0, length: (redacted as NSString).length),
-                withTemplate: pattern.redaction
-            )
+        }
+
+        // Country layer.
+        let activeRegions: [String]
+        if let override = regionOverride, !override.isEmpty {
+            activeRegions = override.map { $0.uppercased() }
+        } else {
+            activeRegions = PiiCountry.inferRegions(text)
+        }
+        let countryMatches = PiiCountry.detect(
+            text, patterns: PiiCountry.patternsForRegions(activeRegions))
+
+        // Resolve overlaps before anything is rewritten. A country identifier
+        // supersedes any L0 span it fully contains -- the cloud does the same,
+        // which is how a Saudi national ID stops coming back as
+        // [PHONE_REDACTED].
+        var claimed: [(Int, Int)] = []
+        var spans: [PiiCountry.RedactionSpan] = []
+        for c in countryMatches {
+            claimed.append((c.startIndex, c.endIndex))
+            spans.append(PiiCountry.RedactionSpan(
+                startIndex: c.startIndex, endIndex: c.endIndex, redaction: c.redaction))
+        }
+
+        for hit in l0 {
+            let overlapping = claimed.filter { hit.start < $0.1 && hit.end > $0.0 }
+            if !overlapping.isEmpty {
+                let swallowsAll = overlapping.allSatisfy { r in
+                    let (cs, ce) = PiiCountry.trimmedCore(ns, r.0, r.1)
+                    return hit.start <= cs && hit.end >= ce
+                }
+                if !swallowsAll { continue }
+                // An L0 span that fully contains a country span still loses:
+                // the country label is the more specific claim.
+                let hitsCountry = overlapping.contains { o in
+                    countryMatches.contains { $0.startIndex == o.0 && $0.endIndex == o.1 }
+                }
+                if hitsCountry { continue }
+                for o in overlapping {
+                    claimed.removeAll { $0 == o }
+                    spans.removeAll { $0.startIndex == o.0 && $0.endIndex == o.1 }
+                }
+            }
+            claimed.append((hit.start, hit.end))
+            spans.append(PiiCountry.RedactionSpan(
+                startIndex: hit.start, endIndex: hit.end, redaction: hit.redaction))
+            matches.append(hit.match)
+            typeSet.insert(hit.match.type)
+        }
+
+        var countryLabels: [String] = []
+        for c in countryMatches where !countryLabels.contains(c.label) {
+            countryLabels.append(c.label)
         }
 
         return PIIResult(
-            hasPII: !allMatches.isEmpty,
+            hasPII: !matches.isEmpty || !countryMatches.isEmpty,
             types: Array(typeSet),
-            count: allMatches.count,
-            matches: allMatches,
-            redactedText: redacted
+            count: matches.count + countryMatches.count,
+            matches: matches,
+            redactedText: PiiCountry.applyRedactions(text, spans),
+            countryMatches: countryMatches,
+            countryLabels: countryLabels,
+            regions: activeRegions
         )
     }
 
