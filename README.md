@@ -10,7 +10,7 @@ Add to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/torkjacobs/tork-swift-sdk.git", from: "0.3.0"),
+    .package(url: "https://github.com/torkjacobs/tork-swift-sdk.git", from: "0.4.0"),
 ]
 ```
 
