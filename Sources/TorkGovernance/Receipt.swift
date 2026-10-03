@@ -59,7 +59,7 @@ public struct GovernanceReceipt: Sendable {
 ///
 /// All fields are optional. When provided, they are included in the POST body
 /// to /api/v1/govern and returned in the receipt under `session_context`.
-public struct SessionContext: Sendable {
+public struct SessionContext: Codable, Sendable, Equatable {
     /// Identifier for the agent making the call.
     public let agentId: String?
     /// Role of the agent: "planner", "worker", or "judge".
@@ -75,6 +75,27 @@ public struct SessionContext: Sendable {
         self.agentRole = agentRole
         self.sessionId = sessionId
         self.sessionTurn = sessionTurn
+    }
+
+    /// Wire names are snake_case (`agent_id`, `agent_role`, `session_id`,
+    /// `session_turn`). Unset fields are omitted from the encoded form, never
+    /// sent as `null`.
+    enum CodingKeys: String, CodingKey {
+        case agentId = "agent_id"
+        case agentRole = "agent_role"
+        case sessionId = "session_id"
+        case sessionTurn = "session_turn"
+    }
+
+    /// The request fields to put on the governance call: only the fields that
+    /// are set, under their wire names. Empty when nothing is set.
+    public var requestFields: [String: Any] {
+        var out: [String: Any] = [:]
+        if let agentId { out["agent_id"] = agentId }
+        if let agentRole { out["agent_role"] = agentRole }
+        if let sessionId { out["session_id"] = sessionId }
+        if let sessionTurn { out["session_turn"] = sessionTurn }
+        return out
     }
 }
 

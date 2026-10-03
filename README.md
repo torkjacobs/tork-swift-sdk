@@ -131,6 +131,18 @@ Detects and redacts the following PII types:
 | Driver's License | D1234567 | [DL_REDACTED] |
 | Bank Account | 12345678901234 | [ACCOUNT_REDACTED] |
 
+## Agent telemetry fields
+
+Optional `agent_id`, `agent_role`, `session_id` and `session_turn` (an integer) travel on a `SessionContext`. They are passed through to the receipt when set and omitted when not:
+
+```swift
+let ctx = SessionContext(agentId: "planner-1", agentRole: "planner",
+                         sessionId: "sess-42", sessionTurn: 3)
+let result = tork.govern(text, sessionContext: ctx)   // or GovernOptions(sessionContext: ctx)
+result.receipt.sessionContext?.sessionTurn            // 3
+ctx.requestFields                                     // ["agent_id": ..., "session_turn": 3, ...] (set fields only)
+```
+
 ## Scanning tool results
 
 A tool result returned by an MCP server — or any external system you do not control — is untrusted input that is about to be appended to a model's context. `Tork.scanToolResult` scans it first, on-device, for PII and prompt injection:
