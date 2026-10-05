@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.0 - 2026-10-03
+
+### Added
+- **Agent telemetry request fields** on the governance call: optional
+  `agent_id`, `agent_role`, `session_id` and `session_turn` (integer), carried
+  by `SessionContext` (`agentId`, `agentRole`, `sessionId`, `sessionTurn`) via
+  `govern(_:sessionContext:)` or `GovernOptions`. Passed through to the receipt
+  when set, omitted when not. `SessionContext` is now `Codable` (snake_case wire
+  names, unset fields omitted rather than `null`) and exposes `requestFields`.
+- Per-type PII tests: every declared `PIIType` has a positive and a negative
+  example (`testEveryDeclaredTypeHasPositiveAndNegativeExample`).
+
+### PII types (SDK-DECLARED-PII-TYPES-WITHOUT-PATTERNS-ACROSS-SDKS)
+All 10 declared types have a working pattern; none removed: `ssn`,
+`credit_card`, `email`, `phone`, `ip_address`, `date_of_birth`, `address`,
+`passport`, `drivers_license`, `bank_account`. The parity test already fails on
+a declared type without a pattern.
+
 ## 0.3.0 - 2026-09-25
 
 ### Added
